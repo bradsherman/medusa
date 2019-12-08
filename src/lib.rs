@@ -3,6 +3,7 @@ extern crate reqwest;
 use std::error::Error;
 use std::thread;
 use std::time::SystemTime;
+use std::sync::Arc;
 
 pub struct Config {
     pub num_threads: u32,
@@ -34,13 +35,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let mut all_threads = Vec::with_capacity(config.num_threads as usize);
     println!("Load testing '{}' with {} concurrent requests", config.url, config.num_threads);
 
-    for _i in 0..config.num_threads {
-        // not ideal, but need to read more about strings again to fix
-        let new_url = config.url.clone();
+    // Atomic shared pointer to url
+    let url = Arc::new(config.url);
 
+    for _i in 0..config.num_threads {
+        // Rebind `url` to a copy of the smart pointer so it can be moved into
+        // the thread
+        let url = url.clone();
         let thread = thread::spawn(move || {
             let now = SystemTime::now();
-            match reqwest::get(&new_url) {
+            match reqwest::get(&*url) {
                 Ok(_) => {
                     match now.elapsed() {
                         Ok(elapsed) => {

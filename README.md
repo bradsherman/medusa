@@ -4,9 +4,9 @@ Medusa helps you load test your API by sending many concurrent requests and reco
 
 Example:
 
-```
+```sh
 $ cargo build
-$ ./target/debug/medusa 300 'https://jsonplaceholder.typicode.com/posts'
+$ cargo run 300 'https://jsonplaceholder.typicode.com/posts'
 ```
 
 This will make 300 concurrent requests to the specified url and give an output similar the following snippet:
