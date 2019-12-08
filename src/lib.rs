@@ -76,7 +76,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 }
             }
             Err(e) => {
-                println!("Not adding request stats due to error during execution: {}", e);
+                println!("Not adding request stats due to error during request: {}", e);
             }
         }
     }

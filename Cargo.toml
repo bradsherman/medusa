@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 reqwest = "0.9.22"
+
+[[bin]]
+name = "medusa"
