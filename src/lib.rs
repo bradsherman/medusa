@@ -3,10 +3,15 @@ extern crate reqwest;
 use std::error::Error;
 use std::thread;
 use std::time::SystemTime;
+use std::sync::Arc;
+use std::ops::Div;
+use std::fmt;
 
 pub struct Config {
     pub num_threads: u32,
-    pub url: String
+    pub url: String,
+    // TODO: implement
+    pub max_concurrent_requests: Option<u32>,
 }
 
 impl Config {
@@ -26,7 +31,67 @@ impl Config {
             Some(url) => url,
             None => return Err("Didn't get a url")
         };
-        Ok(Config { num_threads, url })
+        Ok(Config { num_threads, url, max_concurrent_requests: None })
+    }
+}
+
+struct Stats {
+    avg_time: u128,
+    median_time: u128,
+    min_time: u128,
+    max_time: u128,
+    success_count: usize,
+}
+
+impl fmt::Display for Stats {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Successfully completed {} requests", self.success_count)?;
+        writeln!(f, "Avg response time: {}ms", self.avg_time)?;
+        writeln!(f, "Median response time: {}ms", self.median_time)?;
+        writeln!(f, "Min response time: {}ms", self.min_time)?;
+        writeln!(f, "Max response time: {}ms", self.max_time)
+    }
+}
+
+fn median<T>(mut times: Vec<T>) -> T where T : Div + Ord + Copy {
+    times.sort();
+    let mid_idx = times.len() / 2;
+    times[mid_idx]
+}
+
+fn calc_stats(threads: Vec<thread::JoinHandle<Result<u128, String>>>) -> Stats {
+    let mut sum = 0;
+    let mut idx: usize = 0;
+    let mut max_time = 0;
+    let mut min_time = u128::max_value();
+    let mut times = Vec::new();
+    for thread in threads {
+        let t = thread.join().unwrap();
+        match t {
+            Ok(time) => {
+                idx += 1;
+                sum += time;
+                if time < min_time {
+                    min_time = time;
+                }
+                if time > max_time {
+                    max_time = time;
+                }
+                times.push(time);
+            }
+            Err(e) => {
+                println!("Not adding request stats due to error during request: {}", e);
+            }
+        }
+    }
+    let avg = sum / idx as u128;
+    let median_time = median(times);
+    Stats{
+        avg_time: avg,
+        median_time,
+        min_time,
+        max_time,
+        success_count: idx,
     }
 }
 
@@ -34,13 +99,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let mut all_threads = Vec::with_capacity(config.num_threads as usize);
     println!("Load testing '{}' with {} concurrent requests", config.url, config.num_threads);
 
-    for _i in 0..config.num_threads {
-        // not ideal, but need to read more about strings again to fix
-        let new_url = config.url.clone();
+    // Atomic shared pointer to url
+    let url = Arc::new(config.url);
 
+    for _i in 0..config.num_threads {
+        // Rebind `url` to a copy of the smart pointer so it can be moved into
+        // the thread
+        let url = url.clone();
         let thread = thread::spawn(move || {
             let now = SystemTime::now();
-            match reqwest::get(&new_url) {
+            match reqwest::get(&*url) {
                 Ok(_) => {
                     match now.elapsed() {
                         Ok(elapsed) => {
@@ -58,32 +126,6 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         });
         all_threads.push(thread);
     }
-    let mut sum = 0;
-    let mut idx = 0;
-    let mut max_time = 0;
-    let mut min_time = u128::max_value();
-    for thread in all_threads {
-        let t = thread.join().unwrap();
-        match t {
-            Ok(time) => {
-                idx = idx + 1;
-                sum = sum + time;
-                if time < min_time {
-                    min_time = time;
-                }
-                if time > max_time {
-                    max_time = time;
-                }
-            }
-            Err(e) => {
-                println!("Not adding request stats due to error during request: {}", e);
-            }
-        }
-    }
-    let avg = sum / idx;
-    println!("Successfully completed {} requests", idx);
-    println!("Avg response time: {}ms", avg);
-    println!("Min response time: {}ms", min_time);
-    println!("Max response time: {}ms", max_time);
+    print!("{}", calc_stats(all_threads));
     Ok(())
 }
