@@ -1,13 +1,38 @@
-use std::env;
+extern crate clap;
+
+use clap::{value_t, App, Arg};
 use std::process;
 
 use medusa::Config;
 
 fn main() {
-    let config = Config::new(env::args()).unwrap_or_else(|err| {
-        eprintln!("Problem parsing arugments: {}", err);
-        process::exit(1);
-    });
+    let matches = App::new("Medusa")
+        .version("0.1.0")
+        .author("Brad Sherman & Carter Green")
+        .about("API load testing tool")
+        .arg(
+            Arg::with_name("url")
+                .short("-u")
+                .long("url")
+                .required(true)
+                .value_name("URL")
+                .help("Sets the url to be tested")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("threads")
+                .short("-t")
+                .long("threads")
+                .required(true)
+                .value_name("THREADS")
+                .help("Sets the number of threads to be used")
+                .takes_value(true),
+        )
+        .get_matches();
+
+    let url = matches.value_of("url").unwrap();
+    let threads = value_t!(matches.value_of("threads"), u32).unwrap_or_else(|e| e.exit());
+    let config = Config::new(url, threads);
 
     if let Err(e) = medusa::run(config) {
         eprintln!("Application error: {}", e);

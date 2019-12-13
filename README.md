@@ -6,7 +6,7 @@ Example:
 
 ```sh
 $ cargo build
-$ cargo run 300 'https://jsonplaceholder.typicode.com/posts'
+$ cargo run -- -t 300 -u 'https://jsonplaceholder.typicode.com/posts'
 ```
 
 This will make 300 concurrent requests to the specified url and give an output similar the following snippet:
@@ -20,7 +20,6 @@ Max response time: 14669ms
 
 ## Future Work
 
-* More robust input handling for cli args
 * Read config from file
 * Test multiple endpoints
 * Add ability to make post requests by specifying data in body of request.

@@ -15,38 +15,12 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(mut args: std::env::Args) -> Result<Config, &'static str> {
-        args.next();
-        let num_threads = match args.next() {
-            Some(n) => {
-                let arg: u32 = match n.trim().parse() {
-                    Ok(num) => num,
-                    Err(_) => return Err("Didn't get a valid number for number of threads"),
-                };
-                arg
-            }
-            None => return Err("Didn't get a number of threads"),
-        };
-        let url = match args.next() {
-            Some(url) => url,
-            None => return Err("Didn't get a url"),
-        };
-        let max_concurrent_requests = match args.next() {
-            Some(max_reqs) => {
-                println!("max_concurrent_requests argument is not implemented, ignoring");
-                let arg: Option<u32> = match max_reqs.trim().parse() {
-                    Ok(num) => Some(num),
-                    Err(_) => None,
-                };
-                arg
-            }
-            None => None,
-        };
-        Ok(Config {
-            num_threads,
-            url,
-            max_concurrent_requests,
-        })
+    pub fn new(url: &str, threads: u32) -> Config {
+        Config {
+            url: url.to_string(),
+            num_threads: threads,
+            max_concurrent_requests: None,
+        }
     }
 }
 
