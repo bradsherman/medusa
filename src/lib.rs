@@ -31,10 +31,21 @@ impl Config {
             Some(url) => url,
             None => return Err("Didn't get a url"),
         };
+        let max_concurrent_requests = match args.next() {
+            Some(max_reqs) => {
+                println!("max_concurrent_requests argument is not implemented, ignoring");
+                let arg: Option<u32> = match max_reqs.trim().parse() {
+                    Ok(num) => Some(num),
+                    Err(_) => None,
+                };
+                arg
+            }
+            None => None,
+        };
         Ok(Config {
             num_threads,
             url,
-            max_concurrent_requests: None,
+            max_concurrent_requests,
         })
     }
 }
@@ -49,6 +60,7 @@ struct Stats {
 
 impl fmt::Display for Stats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "")?;
         writeln!(f, "Successfully completed {} requests", self.success_count)?;
         writeln!(f, "Avg response time: {}ms", self.avg_time)?;
         writeln!(f, "Median response time: {}ms", self.median_time)?;
@@ -114,14 +126,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 
     // Atomic shared pointer to url
     let url = Arc::new(config.url);
+    let client = Arc::new(reqwest::Client::new());
 
     for _i in 0..config.num_threads {
         // Rebind `url` to a copy of the smart pointer so it can be moved into
         // the thread
         let url = url.clone();
+        let client = client.clone();
         let thread = thread::spawn(move || {
             let now = SystemTime::now();
-            match reqwest::get(&*url) {
+            match client.get(&*url).send() {
                 Ok(_) => match now.elapsed() {
                     Ok(elapsed) => {
                         return Ok(elapsed.as_millis());
