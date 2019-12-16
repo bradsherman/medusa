@@ -4,8 +4,8 @@ use std::error::Error;
 use std::fmt;
 use std::ops::Div;
 use std::sync::{Arc, Mutex};
-use std::time;
 use std::thread;
+use std::time;
 use std::time::SystemTime;
 
 pub struct Config {
@@ -131,16 +131,10 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             }
             match result {
                 Ok(_) => match now.elapsed() {
-                    Ok(elapsed) => {
-                        Ok(elapsed.as_millis())
-                    }
-                    Err(e) => {
-                        Err(String::from(e.description()))
-                    }
+                    Ok(elapsed) => Ok(elapsed.as_millis()),
+                    Err(e) => Err(String::from(e.description())),
                 },
-                Err(e) => {
-                    Err(String::from(e.description()))
-                }
+                Err(e) => Err(String::from(e.description())),
             }
         });
         all_threads.push(thread);
