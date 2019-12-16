@@ -3,23 +3,23 @@ extern crate reqwest;
 use std::error::Error;
 use std::fmt;
 use std::ops::Div;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time;
 use std::thread;
 use std::time::SystemTime;
 
 pub struct Config {
     pub num_threads: u32,
     pub url: String,
-    // TODO: implement
     pub max_concurrent_requests: Option<u32>,
 }
 
 impl Config {
-    pub fn new(url: &str, threads: u32) -> Config {
+    pub fn new(url: &str, num_threads: u32, max_concurrent_requests: Option<u32>) -> Config {
         Config {
             url: url.to_string(),
-            num_threads: threads,
-            max_concurrent_requests: None,
+            num_threads,
+            max_concurrent_requests,
         }
     }
 }
@@ -101,15 +101,35 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     // Atomic shared pointer to url
     let url = Arc::new(config.url);
     let client = Arc::new(reqwest::Client::new());
+    let max_concurrent_requests = Arc::new(config.max_concurrent_requests);
+    let current_request_count = Arc::new(Mutex::new(0u32));
 
     for _i in 0..config.num_threads {
         // Rebind `url` to a copy of the smart pointer so it can be moved into
         // the thread
-        let url = url.clone();
-        let client = client.clone();
+        let url = Arc::clone(&url);
+        let client = Arc::clone(&client);
+        let max_concurrent_requests = Arc::clone(&max_concurrent_requests);
+        let current_request_count = Arc::clone(&current_request_count);
+
         let thread = thread::spawn(move || {
+            let ten_ms = time::Duration::from_millis(10);
+            if let Some(max_concurrent_requests) = *max_concurrent_requests {
+                while *current_request_count.lock().unwrap() >= max_concurrent_requests {
+                    thread::sleep(ten_ms);
+                }
+                {
+                    let mut current_request_count = current_request_count.lock().unwrap();
+                    *current_request_count += 1;
+                }
+            }
             let now = SystemTime::now();
-            match client.get(&*url).send() {
+            let result = client.get(&*url).send();
+            {
+                let mut current_request_count = current_request_count.lock().unwrap();
+                *current_request_count -= 1;
+            }
+            match result {
                 Ok(_) => match now.elapsed() {
                     Ok(elapsed) => {
                         return Ok(elapsed.as_millis());
