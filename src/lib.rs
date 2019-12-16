@@ -34,7 +34,7 @@ struct Stats {
 
 impl fmt::Display for Stats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "")?;
+        writeln!(f)?;
         writeln!(f, "Successfully completed {} requests", self.success_count)?;
         writeln!(f, "Avg response time: {}ms", self.avg_time)?;
         writeln!(f, "Median response time: {}ms", self.median_time)?;
@@ -132,14 +132,14 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             match result {
                 Ok(_) => match now.elapsed() {
                     Ok(elapsed) => {
-                        return Ok(elapsed.as_millis());
+                        Ok(elapsed.as_millis())
                     }
                     Err(e) => {
-                        return Err(String::from(e.description()));
+                        Err(String::from(e.description()))
                     }
                 },
                 Err(e) => {
-                    return Err(String::from(e.description()));
+                    Err(String::from(e.description()))
                 }
             }
         });
