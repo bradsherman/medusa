@@ -93,9 +93,13 @@ fn calc_stats(threads: Vec<thread::JoinHandle<Result<u128, String>>>) -> Stats {
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let mut all_threads = Vec::with_capacity(config.num_threads as usize);
+    let max_info = match config.max_concurrent_requests {
+        Some(max_conc) => format!(" (maximum of {} concurrently)", max_conc),
+        None => String::new(),
+    };
     println!(
-        "Load testing '{}' with {} concurrent requests",
-        config.url, config.num_threads
+        "Load testing '{}' with {} concurrent requests{}",
+        config.url, config.num_threads, max_info
     );
 
     // Atomic shared pointer to url
@@ -118,14 +122,14 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
                 while *current_request_count.lock().unwrap() >= max_concurrent_requests {
                     thread::sleep(ten_ms);
                 }
-                {
-                    let mut current_request_count = current_request_count.lock().unwrap();
-                    *current_request_count += 1;
-                }
+                let mut current_request_count = current_request_count.lock().unwrap();
+                *current_request_count += 1;
             }
+
             let now = SystemTime::now();
             let result = client.get(&*url).send();
-            {
+
+            if (*max_concurrent_requests).is_some() {
                 let mut current_request_count = current_request_count.lock().unwrap();
                 *current_request_count -= 1;
             }
