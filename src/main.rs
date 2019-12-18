@@ -2,10 +2,10 @@ extern crate clap;
 extern crate serde;
 extern crate serde_json;
 
-use clap::{App, Arg};
+use clap::{App, Arg, value_t};
 use std::process;
 
-use medusa::Config;
+use medusa::config;
 
 fn main() {
     let matches = App::new("Medusa")
@@ -46,10 +46,10 @@ fn main() {
         )
         .get_matches();
 
-    let config = Config::try_parse(matches).unwrap_or_else(|e| {
-        eprintln!("Error parsing config: {}", e);
-        process::exit(1)
-    });
+    let url = matches.value_of("url").unwrap();
+    let threads = value_t!(matches.value_of("threads"), u32).unwrap_or_else(|e| e.exit());
+    let max_concurrent_requests = value_t!(matches.value_of("max_concurrent_requests"), u32).ok();
+    let config = config::Config::new(url, threads, max_concurrent_requests);
 
     if let Err(e) = medusa::run(config) {
         eprintln!("Application error: {}", e);
