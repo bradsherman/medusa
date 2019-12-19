@@ -2,7 +2,7 @@ extern crate clap;
 extern crate serde;
 extern crate serde_json;
 
-use clap::{value_t, App, Arg};
+use clap::{App, Arg};
 use std::process;
 
 use medusa::config;
@@ -51,8 +51,5 @@ fn main() {
         process::exit(1)
     });
 
-    if let Err(e) = medusa::run(config) {
-        eprintln!("Application error: {}", e);
-        process::exit(1);
-    }
+    medusa::run(config);
 }

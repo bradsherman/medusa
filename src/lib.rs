@@ -9,8 +9,7 @@ use std::time::SystemTime;
 pub mod config;
 pub mod stats;
 
-pub fn run(config: config::Config) -> Result<(), Box<dyn Error>> {
-    let mut all_threads = Vec::with_capacity(config.num_threads as usize);
+pub fn run(config: config::Config) {
     let max_info = match config.max_concurrent_requests {
         Some(max_conc) => format!(" (maximum of {} concurrently)", max_conc),
         None => String::new(),
@@ -26,15 +25,13 @@ pub fn run(config: config::Config) -> Result<(), Box<dyn Error>> {
     let max_concurrent_requests = Arc::new(config.max_concurrent_requests);
     let current_request_count = Arc::new(Mutex::new(0u32));
 
-    for _i in 0..config.num_threads {
-        // Rebind `url` to a copy of the smart pointer so it can be moved into
-        // the thread
+    let all_threads: Vec<thread::JoinHandle<Result<u128, String>>> = (0..config.num_threads).map(|_| {
         let url = Arc::clone(&url);
         let client = Arc::clone(&client);
         let max_concurrent_requests = Arc::clone(&max_concurrent_requests);
         let current_request_count = Arc::clone(&current_request_count);
 
-        let thread = thread::spawn(move || {
+        thread::spawn(move || {
             let ten_ms = time::Duration::from_millis(10);
             if let Some(max_concurrent_requests) = *max_concurrent_requests {
                 while *current_request_count.lock().unwrap() >= max_concurrent_requests {
@@ -51,16 +48,12 @@ pub fn run(config: config::Config) -> Result<(), Box<dyn Error>> {
                 let mut current_request_count = current_request_count.lock().unwrap();
                 *current_request_count -= 1;
             }
-            match result {
-                Ok(_) => match now.elapsed() {
-                    Ok(elapsed) => Ok(elapsed.as_millis()),
-                    Err(e) => Err(String::from(e.description())),
-                },
-                Err(e) => Err(String::from(e.description())),
+            match (result, now.elapsed()) {
+                (Ok(_), Ok(elapsed)) => Ok(elapsed.as_millis()),
+                (Err(e), _) => Err(String::from(e.description())),
+                (_, Err(e)) => Err(String::from(e.description())),
             }
-        });
-        all_threads.push(thread);
-    }
+        })
+    }).collect();
     print!("{}", stats::calc_stats(all_threads));
-    Ok(())
 }
