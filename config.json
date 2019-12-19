@@ -1,0 +1,5 @@
+{
+  "num_threads": 100,
+  "url": "https://jsonplaceholder.typicode.com/posts",
+  "max_concurrent_requests": 10
+}
