@@ -1,6 +1,5 @@
 use std::fmt;
 use std::ops::Div;
-use std::thread;
 
 pub struct Stats {
     avg_time: u128,
@@ -30,15 +29,14 @@ where
     times[mid_idx]
 }
 
-pub fn calc_stats(threads: Vec<thread::JoinHandle<Result<u128, String>>>) -> Stats {
+pub fn calc_stats(results: Vec<Result<u128, String>>) -> Stats {
     let mut sum = 0;
     let mut idx: usize = 0;
     let mut max_time = 0;
     let mut min_time = u128::max_value();
     let mut times = Vec::new();
-    for thread in threads {
-        let t = thread.join().unwrap();
-        match t {
+    for result in results {
+        match result {
             Ok(time) => {
                 idx += 1;
                 sum += time;
