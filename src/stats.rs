@@ -66,3 +66,37 @@ pub fn calc_stats(results: Vec<Result<u128, String>>) -> Stats {
         success_count: idx,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn median_sort() {
+        let v = vec![2, 1, 4, 3];
+        assert_eq!(median(v), 3);
+    }
+
+    #[test]
+    fn median_odd() {
+        let v = vec![0, 4, 123, 5, 8];
+        assert_eq!(median(v), 5);
+    }
+
+    #[test]
+    fn calc() {
+        let results = vec![
+            Result::Ok(3),
+            Result::Err("Error".to_owned()),
+            Result::Ok(5),
+            Result::Ok(7),
+        ];
+        let stats = calc_stats(results);
+        assert_eq!(stats.avg_time, 5);
+        assert_eq!(stats.max_time, 7);
+        assert_eq!(stats.min_time, 3);
+        assert_eq!(stats.median_time, 5);
+        assert_eq!(stats.success_count, 3);
+    }
+}
