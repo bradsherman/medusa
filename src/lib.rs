@@ -25,7 +25,7 @@ pub fn run(config: config::Config) {
     let max_concurrent_requests = Arc::new(config.max_concurrent_requests);
     let current_request_count = Arc::new(Mutex::new(0u32));
 
-    let all_threads: Vec<thread::JoinHandle<Result<u128, String>>> = (0..config.num_threads)
+    let all_threads: Vec<Result<u128, String>> = (0..config.num_threads)
         .map(|_| {
             let url = Arc::clone(&url);
             let client = Arc::clone(&client);
@@ -56,6 +56,7 @@ pub fn run(config: config::Config) {
                 }
             })
         })
+        .map(|handle| handle.join().unwrap())
         .collect();
     print!("{}", stats::calc_stats(all_threads));
 }
